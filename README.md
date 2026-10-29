@@ -10,7 +10,7 @@
 
 ## Features
 
-- **Client** — quality gate status, measures, issue search (severity, type, status, branch, pull request, paging, new code), source snippets, branches and project search, on global `fetch` with no runtime dependencies
+- **Client** — quality gate status, measures and their history, component tree, issue search (severity, type, status, branch, pull request, paging, new code), issue facets, hotspots, rules, duplications, quality profiles, source snippets, branches and project search, on global `fetch` with no runtime dependencies
 - **Layered config** — config file < environment < explicit options; undefined never overwrites; project key falls back to `sonar-project.properties`
 - **"Why is the gate red"** — `explainGate` turns a project status into a status word, the new-code period and conditions sorted failing first, with `*_rating` metrics shown as A–E
 - **Safe auth** — the token is sent as the basic-auth username with an empty password and never appears in errors; `redactToken` and `redactConfig` are there for your own logging
@@ -53,7 +53,7 @@ The file is `$XDG_CONFIG_HOME/sonarqube-dash-cli/config.json` (default `~/.confi
 
 | Export                                                  | What it does                                                    |
 | ------------------------------------------------------- | --------------------------------------------------------------- |
-| `SonarQubeClient`                                       | `getProjectStatus`, `explainGate`, `getMeasures`, `getIssues`, `getIssueSource`, `getBranches`, `searchProjects` |
+| `SonarQubeClient`                                       | `getProjectStatus`, `explainGate`, `getMeasures`, `getMeasuresHistory`, `getComponentTree`, `getIssues`, `getIssue`, `getIssuesSummary`, `getIssueSource`, `searchHotspots`, `getHotspot`, `searchRules`, `getRule`, `getDuplications`, `searchQualityProfiles`, `getBranches`, `searchProjects` |
 | `resolveConfig`, `readSonarProjectKey`, `writeConfig`   | Layered config, properties fallback, config file writer         |
 | `configFilePath`, `readConfigFile`                      | Config file location and reader                                 |
 | `redactToken`, `redactConfig`                           | Strip the token from text or a config                           |

@@ -2,6 +2,20 @@ import { MissingHostError, SonarQubeHttpError } from "./errors.js"
 import { explainGate } from "./gate.js"
 import type {
   Branch,
+  ComponentTree,
+  ComponentTreeQuery,
+  Duplications,
+  Hotspot,
+  HotspotsQuery,
+  HotspotsResult,
+  IssuesSummary,
+  IssuesSummaryQuery,
+  MeasuresHistory,
+  MeasuresHistoryQuery,
+  QualityProfile,
+  Rule,
+  RulesQuery,
+  RulesResult,
   GateExplanation,
   IssueSource,
   Issue,
@@ -16,6 +30,7 @@ import type {
 type Params = Record<string, string | number | boolean | string[] | undefined>
 
 const MAX_PAGE_SIZE = 500
+const DEFAULT_FACETS = "severities,types,statuses"
 
 const toQuery = (params: Params): string => {
   const search = new URLSearchParams()
@@ -183,6 +198,135 @@ export class SonarQubeClient {
   async getBranches(project: string): Promise<Branch[]> {
     const res = await this.getJson("/api/project_branches/list", { project })
     return res.branches ?? []
+  }
+
+  /** One issue by key, or null when the server does not know it. */
+  async getIssue(key: string): Promise<Issue | null> {
+    const res = await this.getJson("/api/issues/search", { issues: key, ps: 1 })
+    return res.issues?.[0] ?? null
+  }
+
+  /** Issue counts per facet; the list itself is not fetched. */
+  async getIssuesSummary(query: IssuesSummaryQuery): Promise<IssuesSummary> {
+    const facets = asList(query.facets) || DEFAULT_FACETS
+    const res = await this.getJson("/api/issues/search", {
+      componentKeys: query.project,
+      branch: query.branch,
+      pullRequest: query.pullRequest,
+      p: 1,
+      ps: 1,
+      facets,
+    })
+    const counts: Record<string, Record<string, number>> = {}
+    for (const facet of res.facets ?? []) {
+      counts[facet.property] = Object.fromEntries(
+        (facet.values ?? []).map((v: { val: string; count: number }) => [v.val, v.count]),
+      )
+    }
+    return {
+      projectKey: query.project,
+      branch: query.branch,
+      total: res.paging?.total ?? res.total ?? 0,
+      facets: counts,
+      requestedFacets: facets.split(","),
+    }
+  }
+
+  async searchHotspots(query: HotspotsQuery): Promise<HotspotsResult> {
+    const res = await this.getJson("/api/hotspots/search", {
+      projectKey: query.project,
+      branch: query.branch,
+      pullRequest: query.pullRequest,
+      status: query.status,
+      severity: query.severity,
+      p: query.page ?? 1,
+      ps: Math.min(query.limit ?? 50, MAX_PAGE_SIZE),
+    })
+    return {
+      projectKey: query.project,
+      branch: query.branch,
+      paging: res.paging,
+      hotspots: res.hotspots ?? [],
+    }
+  }
+
+  async getHotspot(key: string): Promise<Hotspot | null> {
+    const res = await this.getJson("/api/hotspots/show", { hotspot: key })
+    return res && res.key ? res : (res?.hotspot ?? null)
+  }
+
+  async searchRules(query: RulesQuery = {}): Promise<RulesResult> {
+    const res = await this.getJson("/api/rules/search", {
+      q: query.query,
+      languages: asList(query.languages),
+      tags: asList(query.tags),
+      repositories: asList(query.repositories),
+      severities: asList(query.severities),
+      p: query.page ?? 1,
+      ps: Math.min(query.limit ?? 50, MAX_PAGE_SIZE),
+    })
+    return { paging: res.paging, rules: res.rules ?? [] }
+  }
+
+  async getRule(key: string): Promise<Rule | null> {
+    const res = await this.getJson("/api/rules/show", { key })
+    return res.rule ?? null
+  }
+
+  async getMeasuresHistory(query: MeasuresHistoryQuery): Promise<MeasuresHistory> {
+    const res = await this.getJson("/api/measures/search_history", {
+      component: query.component,
+      metrics: asList(query.metrics),
+      branch: query.branch,
+      pullRequest: query.pullRequest,
+      from: query.from,
+      to: query.to,
+      ps: Math.min(query.limit ?? 100, MAX_PAGE_SIZE),
+    })
+    return { paging: res.paging, measures: res.measures ?? [] }
+  }
+
+  /** Measures come back only when metricKeys are given (a different endpoint). */
+  async getComponentTree(query: ComponentTreeQuery): Promise<ComponentTree> {
+    const metricKeys = asList(query.metricKeys)
+    const path = metricKeys ? "/api/measures/component_tree" : "/api/components/tree"
+    const res = await this.getJson(path, {
+      component: query.component,
+      branch: query.branch,
+      pullRequest: query.pullRequest,
+      qualifiers: asList(query.qualifiers) ?? "FIL",
+      metricKeys,
+      strategy: query.strategy ?? "leaves",
+      ps: Math.min(query.limit ?? 100, MAX_PAGE_SIZE),
+    })
+    return {
+      paging: res.paging,
+      baseComponent: res.baseComponent,
+      components: res.components ?? [],
+    }
+  }
+
+  async getDuplications(query: {
+    key: string
+    branch?: string
+    pullRequest?: string
+  }): Promise<Duplications> {
+    const res = await this.getJson("/api/duplications/show", {
+      key: query.key,
+      branch: query.branch,
+      pullRequest: query.pullRequest,
+    })
+    return { duplications: res.duplications ?? [], files: res.files ?? {} }
+  }
+
+  async searchQualityProfiles(
+    query: { language?: string; project?: string } = {},
+  ): Promise<QualityProfile[]> {
+    const res = await this.getJson("/api/qualityprofiles/search", {
+      language: query.language,
+      project: query.project,
+    })
+    return res.profiles ?? []
   }
 
   async searchProjects(

@@ -153,3 +153,147 @@ export interface GateExplanation {
   newCodePeriod?: GateNewCodePeriod
   conditions: GateConditionExplanation[]
 }
+
+export interface IssuesSummaryQuery {
+  project: string
+  branch?: string
+  pullRequest?: string
+  /** Defaults to severities,types,statuses. */
+  facets?: string | string[]
+}
+
+export interface IssuesSummary {
+  projectKey: string
+  branch?: string
+  total: number
+  /** facet name → value → count */
+  facets: Record<string, Record<string, number>>
+  requestedFacets: string[]
+}
+
+export interface HotspotsQuery {
+  project: string
+  branch?: string
+  pullRequest?: string
+  /** TO_REVIEW or REVIEWED */
+  status?: string
+  /** LOW, MEDIUM or HIGH */
+  severity?: string
+  /** Page size, capped at 500. Defaults to 50. */
+  limit?: number
+  page?: number
+}
+
+export interface Hotspot {
+  key: string
+  message?: string
+  status?: string
+  securityCategory?: string
+  vulnerabilityProbability?: string
+  line?: number
+  /** A key in search results, an object in hotspots/show. */
+  component?: string | { key: string; [field: string]: unknown }
+  project?: string | { key: string; [field: string]: unknown }
+  [field: string]: unknown
+}
+
+export interface HotspotsResult {
+  projectKey: string
+  branch?: string
+  paging?: Paging
+  hotspots: Hotspot[]
+}
+
+export interface RulesQuery {
+  query?: string
+  languages?: string | string[]
+  tags?: string | string[]
+  repositories?: string | string[]
+  severities?: string | string[]
+  /** Page size, capped at 500. Defaults to 50. */
+  limit?: number
+  page?: number
+}
+
+export interface Rule {
+  key: string
+  name?: string
+  severity?: string
+  lang?: string
+  langName?: string
+  tags?: string[]
+  htmlDesc?: string
+  [field: string]: unknown
+}
+
+export interface RulesResult {
+  paging?: Paging
+  rules: Rule[]
+}
+
+export interface MeasuresHistoryQuery {
+  component: string
+  metrics: string | string[]
+  branch?: string
+  pullRequest?: string
+  /** YYYY-MM-DD */
+  from?: string
+  /** YYYY-MM-DD */
+  to?: string
+  /** Page size, capped at 500. Defaults to 100. */
+  limit?: number
+}
+
+export interface MeasuresHistory {
+  paging?: Paging
+  measures: { metric: string; history: { date: string; value?: string }[] }[]
+}
+
+export interface ComponentTreeQuery {
+  component: string
+  branch?: string
+  pullRequest?: string
+  /** Defaults to FIL. */
+  qualifiers?: string | string[]
+  metricKeys?: string | string[]
+  /** leaves, children or all. Defaults to leaves. */
+  strategy?: string
+  /** Page size, capped at 500. Defaults to 100. */
+  limit?: number
+}
+
+export interface TreeComponent {
+  key: string
+  name?: string
+  qualifier?: string
+  path?: string
+  measures?: Measure[]
+}
+
+export interface ComponentTree {
+  paging?: Paging
+  baseComponent?: TreeComponent
+  components: TreeComponent[]
+}
+
+export interface DuplicationBlock {
+  from: number
+  size: number
+  /** Key into `files`. */
+  _ref?: string
+}
+
+export interface Duplications {
+  duplications: { blocks: DuplicationBlock[] }[]
+  files: Record<string, { key?: string; name?: string; project?: string }>
+}
+
+export interface QualityProfile {
+  key: string
+  name: string
+  language?: string
+  languageName?: string
+  isDefault?: boolean
+  isInherited?: boolean
+  [field: string]: unknown
+}
