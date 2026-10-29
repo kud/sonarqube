@@ -1,0 +1,50 @@
+{
+  "name": "@kud/sonarqube",
+  "version": "0.1.0",
+  "description": "Headless SonarQube core — client, config, quality-gate model, and types (data · actions · auth).",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test 'test/**/*.test.ts'",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "sonarqube",
+    "quality-gate",
+    "client",
+    "api",
+    "code-quality",
+    "core"
+  ],
+  "author": "Erwann Mest <m@kud.io>",
+  "license": "MIT",
+  "homepage": "https://github.com/kud/sonarqube",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kud/sonarqube"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "24.3.1",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2"
+  }
+}
