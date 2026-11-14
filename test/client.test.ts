@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { SonarQubeClient, SonarQubeHttpError } from "../src/index.js"
+import { SonarQubeClient, SonarQubeHttpError, SonarQubeAuthError } from "../src/index.js"
 import { startFakeSonarQube } from "./fake-sonarqube.js"
 
 test("sends the token as basic-auth username with an empty password", async () => {
@@ -198,6 +198,31 @@ test("HTTP errors never carry the token", async () => {
       }).getProjectStatus({ project: "my-project" }),
       (err: Error) =>
         !err.message.includes("tok123") && err.message.includes("401"),
+    )
+  } finally {
+    await fake.close()
+  }
+})
+
+test("a 401 throws SonarQubeAuthError naming the token env var", async () => {
+  const fake = await startFakeSonarQube(() => ({ status: 401 }))
+  try {
+    const client = new SonarQubeClient({
+      host: fake.host,
+      token: "tok123",
+      tokenEnv: "SONAR_TOKEN",
+    })
+    await assert.rejects(
+      client.getProjectStatus({ project: "my-project" }),
+      (err: unknown) => {
+        assert.ok(err instanceof SonarQubeAuthError)
+        assert.ok(err instanceof SonarQubeHttpError)
+        const authErr = err as SonarQubeAuthError
+        assert.equal(authErr.status, 401)
+        assert.ok(authErr.message.includes("SONAR_TOKEN"))
+        assert.ok(!authErr.message.includes("tok123"))
+        return true
+      },
     )
   } finally {
     await fake.close()

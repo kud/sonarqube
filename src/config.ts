@@ -3,17 +3,37 @@ import path from "path"
 import os from "os"
 import type { ResolveConfigOptions, SonarQubeConfig } from "./types.js"
 
-const CONFIG_DIR_NAME = "sonarqube-dash-cli"
+const CONFIG_DIR_NAME = "sonarqube"
+const LEGACY_CONFIG_DIR_NAME = "sonarqube-dash-cli"
 
 const TOKEN_ENV = ["SONARQUBE_DASH_TOKEN", "SONARQUBE_TOKEN", "SONAR_TOKEN"]
-const HOST_ENV = ["SONARQUBE_DASH_HOST", "SONAR_HOST_URL"]
+const HOST_ENV = ["SONARQUBE_HOST", "SONARQUBE_DASH_HOST", "SONAR_HOST_URL"]
+const PROJECT_ENV = ["SONARQUBE_PROJECT", "SONARQUBE_DASH_PROJECT"]
+const BRANCH_ENV = ["SONARQUBE_BRANCH", "SONARQUBE_DASH_BRANCH"]
+
+const configDirFile = (dir: string, env: NodeJS.ProcessEnv): string => {
+  const base = env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config")
+  return path.join(base, dir, "config.json")
+}
 
 /** Resolved on every call so XDG_CONFIG_HOME changes are honoured. */
 export const configFilePath = (
   env: NodeJS.ProcessEnv = process.env,
+): string => configDirFile(CONFIG_DIR_NAME, env)
+
+export const legacyConfigFilePath = (
+  env: NodeJS.ProcessEnv = process.env,
+): string => configDirFile(LEGACY_CONFIG_DIR_NAME, env)
+
+/** The path that actually holds a config: the new file, the legacy file, or the new path. */
+export const existingConfigFilePath = (
+  env: NodeJS.ProcessEnv = process.env,
 ): string => {
-  const base = env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config")
-  return path.join(base, CONFIG_DIR_NAME, "config.json")
+  const current = configFilePath(env)
+  if (fs.existsSync(current)) return current
+  const legacy = legacyConfigFilePath(env)
+  if (fs.existsSync(legacy)) return legacy
+  return current
 }
 
 const withoutEmpty = (obj: Record<string, unknown>): SonarQubeConfig =>
@@ -23,6 +43,10 @@ const withoutEmpty = (obj: Record<string, unknown>): SonarQubeConfig =>
 
 const firstSet = (env: NodeJS.ProcessEnv, names: string[]) =>
   names.map((name) => env[name]).find((value) => value)
+
+export const tokenEnvName = (
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined => TOKEN_ENV.find((name) => env[name])
 
 export const readConfigFile = (file: string): SonarQubeConfig => {
   try {
@@ -36,12 +60,16 @@ export const readConfigFile = (file: string): SonarQubeConfig => {
 
 export const writeConfig = (
   data: SonarQubeConfig,
-  file: string = configFilePath(),
+  file?: string,
 ): { path: string; data: SonarQubeConfig } => {
-  fs.mkdirSync(path.dirname(file), { recursive: true })
-  const merged = { ...readConfigFile(file), ...data }
-  fs.writeFileSync(file, JSON.stringify(merged, null, 2) + "\n", "utf8")
-  return { path: file, data: merged }
+  const target = file ?? configFilePath()
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  const merged = {
+    ...readConfigFile(file ?? existingConfigFilePath()),
+    ...data,
+  }
+  fs.writeFileSync(target, JSON.stringify(merged, null, 2) + "\n", "utf8")
+  return { path: target, data: merged }
 }
 
 /** The `sonar.projectKey` of a sonar-project.properties file in `dir`, if any. */
@@ -69,14 +97,14 @@ export const resolveConfig = (
   options: ResolveConfigOptions = {},
 ): SonarQubeConfig => {
   const env = options.env ?? process.env
-  const fromFile = withoutEmpty(
-    { ...readConfigFile(options.configPath ?? configFilePath(env)) },
-  )
+  const fromFile = withoutEmpty({
+    ...readConfigFile(options.configPath ?? existingConfigFilePath(env)),
+  })
   const fromEnv = withoutEmpty({
     token: firstSet(env, TOKEN_ENV),
     host: firstSet(env, HOST_ENV),
-    project: env.SONARQUBE_DASH_PROJECT,
-    branch: env.SONARQUBE_DASH_BRANCH,
+    project: firstSet(env, PROJECT_ENV),
+    branch: firstSet(env, BRANCH_ENV),
   })
   const explicit = withoutEmpty({
     token: options.token,
@@ -89,6 +117,8 @@ export const resolveConfig = (
     const key = readSonarProjectKey(options.cwd)
     if (key) merged.project = key
   }
+  if (merged.token && merged.token === fromEnv.token)
+    merged.tokenEnv = tokenEnvName(env)
   return merged
 }
 

@@ -14,7 +14,7 @@
 - **Layered config** — config file < environment < explicit options; undefined never overwrites; project key falls back to `sonar-project.properties`
 - **"Why is the gate red"** — `explainGate` turns a project status into a status word, the new-code period and conditions sorted failing first, with `*_rating` metrics shown as A–E
 - **Safe auth** — the token is sent as the basic-auth username with an empty password and never appears in errors; `redactToken` and `redactConfig` are there for your own logging
-- **Typed errors** — a missing host throws `MissingHostError`; HTTP failures throw `SonarQubeHttpError`
+- **Typed errors** — a missing host throws `MissingHostError`; HTTP failures throw `SonarQubeHttpError`, and a 401 throws `SonarQubeAuthError`, which names the env var the token came from when it is known
 
 Surface-agnostic by design: no CLI, no prompts, no rendering.
 
@@ -42,12 +42,14 @@ Resolved in layers, each overriding the last: config file, environment, explicit
 
 | Setting | Environment (first set wins)                          | File key  |
 | ------- | ----------------------------------------------------- | --------- |
-| host    | `SONARQUBE_DASH_HOST`, `SONAR_HOST_URL`               | `host`    |
-| token   | `SONARQUBE_DASH_TOKEN`, `SONARQUBE_TOKEN`, `SONAR_TOKEN` | `token`   |
-| project | `SONARQUBE_DASH_PROJECT`                              | `project` |
-| branch  | `SONARQUBE_DASH_BRANCH`                               | `branch`  |
+| host    | `SONARQUBE_HOST`, `SONAR_HOST_URL`                    | `host`    |
+| token   | `SONARQUBE_TOKEN`, `SONAR_TOKEN`                      | `token`   |
+| project | `SONARQUBE_PROJECT`                                   | `project` |
+| branch  | `SONARQUBE_BRANCH`                                    | `branch`  |
 
-The file is `$XDG_CONFIG_HOME/sonarqube-dash-cli/config.json` (default `~/.config/sonarqube-dash-cli/config.json`). Without a project key anywhere, `sonar.projectKey` is read from `sonar-project.properties` in the working directory. There is no default host: constructing a client without one throws `MissingHostError`.
+The older `SONARQUBE_DASH_*` names are still read. For host, project and branch the names above win over them; `SONARQUBE_DASH_TOKEN` keeps its precedence over the token names above, as before.
+
+The file is `$XDG_CONFIG_HOME/sonarqube/config.json` (default `~/.config/sonarqube/config.json`). The legacy `~/.config/sonarqube-dash-cli/config.json` is still read when the new file does not exist, and its values are carried over on the next `writeConfig()`. Without a project key anywhere, `sonar.projectKey` is read from `sonar-project.properties` in the working directory. There is no default host: constructing a client without one throws `MissingHostError`.
 
 ## API
 
@@ -59,7 +61,7 @@ The file is `$XDG_CONFIG_HOME/sonarqube-dash-cli/config.json` (default `~/.confi
 | `redactToken`, `redactConfig`                           | Strip the token from text or a config                           |
 | `explainGate`, `gateStatusWord`, `formatMetricValue`    | The gate model and its helpers                                  |
 | `formatIssueAuthor`, `formatDate`                       | Author (before `@`) and `YYYY-MM-DD` formatters                 |
-| `MissingHostError`, `SonarQubeHttpError`                | Typed errors                                                    |
+| `MissingHostError`, `SonarQubeAuthError`, `SonarQubeHttpError` | Typed errors (auth on 401)                              |
 
 With `newCode: true`, `getIssues` sends `inNewCodePeriod=true` and retries once with `sinceLeakPeriod=true` if the server answers 400. Issues are filtered to `resolved=false` unless `statuses` is given.
 

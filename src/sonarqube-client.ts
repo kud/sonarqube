@@ -1,4 +1,8 @@
-import { MissingHostError, SonarQubeHttpError } from "./errors.js"
+import {
+  MissingHostError,
+  SonarQubeAuthError,
+  SonarQubeHttpError,
+} from "./errors.js"
 import { explainGate } from "./gate.js"
 import type {
   Branch,
@@ -48,11 +52,13 @@ const asList = (value?: string | string[]) =>
 export class SonarQubeClient {
   readonly host: string
   private readonly token?: string
+  private readonly tokenEnv?: string
 
   constructor(config: SonarQubeConfig) {
     if (!config.host) throw new MissingHostError()
     this.host = config.host.replace(/\/+$/, "")
     this.token = config.token || undefined
+    this.tokenEnv = config.tokenEnv
   }
 
   private authHeaders(): Record<string, string> {
@@ -65,6 +71,8 @@ export class SonarQubeClient {
     const res = await fetch(`${this.host}${path}${toQuery(params)}`, {
       headers: { Accept: "application/json, text/plain", ...this.authHeaders() },
     })
+    if (res.status === 401)
+      throw new SonarQubeAuthError(path, Boolean(this.token), this.tokenEnv)
     if (!res.ok) throw new SonarQubeHttpError(res.status, path)
     return res
   }
