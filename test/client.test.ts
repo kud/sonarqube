@@ -229,6 +229,62 @@ test("a 401 throws SonarQubeAuthError naming the token env var", async () => {
   }
 })
 
+test("a 401 without a token says a token is required", async () => {
+  const fake = await startFakeSonarQube(() => ({ status: 401 }))
+  try {
+    const client = new SonarQubeClient({ host: fake.host })
+    await assert.rejects(
+      client.getProjectStatus({ project: "my-project" }),
+      (err: unknown) => {
+        assert.ok(err instanceof SonarQubeAuthError)
+        assert.match((err as Error).message, /requires authentication/)
+        assert.match((err as Error).message, /SONARQUBE_TOKEN or SONAR_TOKEN/)
+        return true
+      },
+    )
+  } finally {
+    await fake.close()
+  }
+})
+
+test("a 401 with a token not from env falls back to the generic hint", async () => {
+  const fake = await startFakeSonarQube(() => ({ status: 401 }))
+  try {
+    const client = new SonarQubeClient({ host: fake.host, token: "tok456" })
+    await assert.rejects(
+      client.getProjectStatus({ project: "my-project" }),
+      (err: unknown) => {
+        assert.ok(err instanceof SonarQubeAuthError)
+        const message = (err as Error).message
+        assert.match(message, /rejected the token \(HTTP 401/)
+        assert.match(message, /SONARQUBE_TOKEN or SONAR_TOKEN/)
+        assert.ok(!message.includes("tok456"))
+        return true
+      },
+    )
+  } finally {
+    await fake.close()
+  }
+})
+
+test("non-401 HTTP errors stay plain SonarQubeHttpError", async () => {
+  const fake = await startFakeSonarQube(() => ({ status: 403 }))
+  try {
+    const client = new SonarQubeClient({ host: fake.host, token: "t" })
+    await assert.rejects(
+      client.getProjectStatus({ project: "my-project" }),
+      (err: unknown) => {
+        assert.ok(err instanceof SonarQubeHttpError)
+        assert.ok(!(err instanceof SonarQubeAuthError))
+        assert.equal((err as SonarQubeHttpError).status, 403)
+        return true
+      },
+    )
+  } finally {
+    await fake.close()
+  }
+})
+
 test("issue source returns a marked snippet from the raw endpoint", async () => {
   const source = Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join(
     "\n",

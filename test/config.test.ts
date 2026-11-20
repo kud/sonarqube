@@ -215,3 +215,10 @@ test("tokenEnv names the env var the token came from", () => {
   assert.equal(tokenEnvName({}), undefined)
   assert.equal(redactConfig({ token: "secret", tokenEnv: "SONAR_TOKEN" }).tokenEnv, "SONAR_TOKEN")
 })
+
+test("tokenEnv is unset when the token comes from the config file", () => {
+  writeFile({ host: "https://file.example.com", token: "from-file" })
+  const cfg = resolveConfig({ cwd: tmp })
+  assert.equal(cfg.token, "from-file")
+  assert.equal(cfg.tokenEnv, undefined)
+})
