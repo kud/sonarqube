@@ -92,13 +92,15 @@ test("undefined and empty values never overwrite", () => {
   assert.equal(cfg.token, undefined)
 })
 
-test("token env order: DASH, then SONARQUBE_TOKEN, then SONAR_TOKEN", () => {
-  process.env.SONAR_TOKEN = "c"
+test("token env order: SONARQUBE_TOKEN, then SONAR_TOKEN, then legacy DASH", () => {
+  process.env.SONARQUBE_DASH_TOKEN = "c"
   assert.equal(resolveConfig({ cwd: tmp }).token, "c")
-  process.env.SONARQUBE_TOKEN = "b"
+  assert.equal(resolveConfig({ cwd: tmp }).tokenEnv, "SONARQUBE_DASH_TOKEN")
+  process.env.SONAR_TOKEN = "b"
   assert.equal(resolveConfig({ cwd: tmp }).token, "b")
-  process.env.SONARQUBE_DASH_TOKEN = "a"
+  process.env.SONARQUBE_TOKEN = "a"
   assert.equal(resolveConfig({ cwd: tmp }).token, "a")
+  assert.equal(resolveConfig({ cwd: tmp }).tokenEnv, "SONARQUBE_TOKEN")
 })
 
 test("host env order: SONARQUBE_HOST, then SONARQUBE_DASH_HOST, then SONAR_HOST_URL", () => {
@@ -221,4 +223,12 @@ test("tokenEnv is unset when the token comes from the config file", () => {
   const cfg = resolveConfig({ cwd: tmp })
   assert.equal(cfg.token, "from-file")
   assert.equal(cfg.tokenEnv, undefined)
+})
+
+test("a tokenEnv key in config.json never leaks through read or write", () => {
+  writeFile({ host: "https://file.example.com", token: "t", tokenEnv: "FAKE" })
+  assert.equal(resolveConfig({ cwd: tmp }).tokenEnv, undefined)
+  const written = writeConfig({ project: "p", tokenEnv: "ALSO_FAKE" })
+  assert.equal("tokenEnv" in written.data, false)
+  assert.equal("tokenEnv" in JSON.parse(fs.readFileSync(written.path, "utf8")), false)
 })

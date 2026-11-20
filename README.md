@@ -47,7 +47,7 @@ Resolved in layers, each overriding the last: config file, environment, explicit
 | project | `SONARQUBE_PROJECT`                                   | `project` |
 | branch  | `SONARQUBE_BRANCH`                                    | `branch`  |
 
-The older `SONARQUBE_DASH_*` names are still read. For host, project and branch the names above win over them; `SONARQUBE_DASH_TOKEN` keeps its precedence over the token names above, as before.
+The older `SONARQUBE_DASH_*` names are still read as fallbacks: for host, token, project and branch alike, the names above win over them.
 
 The file is `$XDG_CONFIG_HOME/sonarqube/config.json` (default `~/.config/sonarqube/config.json`). The legacy `~/.config/sonarqube-dash-cli/config.json` is still read when the new file does not exist, and its values are carried over on the next `writeConfig()`. Without a project key anywhere, `sonar.projectKey` is read from `sonar-project.properties` in the working directory. There is no default host: constructing a client without one throws `MissingHostError`.
 

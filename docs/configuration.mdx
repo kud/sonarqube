@@ -26,7 +26,7 @@ const config = resolveConfig({ branch: "main" })
 | project | `SONARQUBE_PROJECT` | `project` |
 | branch | `SONARQUBE_BRANCH` | `branch` |
 
-The older `SONARQUBE_DASH_*` names are still read. For host, project and branch the names above win over them; `SONARQUBE_DASH_TOKEN` keeps its precedence over the token names above, as before.
+The older `SONARQUBE_DASH_*` names are still read as fallbacks: for host, token, project and branch alike, the names above win over them.
 
 There is no default host. Constructing a client without one throws `MissingHostError`.
 

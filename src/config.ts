@@ -6,7 +6,7 @@ import type { ResolveConfigOptions, SonarQubeConfig } from "./types.js"
 const CONFIG_DIR_NAME = "sonarqube"
 const LEGACY_CONFIG_DIR_NAME = "sonarqube-dash-cli"
 
-const TOKEN_ENV = ["SONARQUBE_DASH_TOKEN", "SONARQUBE_TOKEN", "SONAR_TOKEN"]
+const TOKEN_ENV = ["SONARQUBE_TOKEN", "SONAR_TOKEN", "SONARQUBE_DASH_TOKEN"]
 const HOST_ENV = ["SONARQUBE_HOST", "SONARQUBE_DASH_HOST", "SONAR_HOST_URL"]
 const PROJECT_ENV = ["SONARQUBE_PROJECT", "SONARQUBE_DASH_PROJECT"]
 const BRANCH_ENV = ["SONARQUBE_BRANCH", "SONARQUBE_DASH_BRANCH"]
@@ -52,7 +52,9 @@ export const readConfigFile = (file: string): SonarQubeConfig => {
   try {
     if (!fs.existsSync(file)) return {}
     const parsed = JSON.parse(fs.readFileSync(file, "utf8"))
-    return parsed && typeof parsed === "object" ? parsed : {}
+    if (!parsed || typeof parsed !== "object") return {}
+    const { tokenEnv: _runtimeOnly, ...config } = parsed
+    return config
   } catch {
     return {}
   }
@@ -64,9 +66,10 @@ export const writeConfig = (
 ): { path: string; data: SonarQubeConfig } => {
   const target = file ?? configFilePath()
   fs.mkdirSync(path.dirname(target), { recursive: true })
+  const { tokenEnv: _runtimeOnly, ...fields } = data
   const merged = {
     ...readConfigFile(file ?? existingConfigFilePath()),
-    ...data,
+    ...fields,
   }
   fs.writeFileSync(target, JSON.stringify(merged, null, 2) + "\n", "utf8")
   return { path: target, data: merged }
