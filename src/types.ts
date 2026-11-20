@@ -1,6 +1,8 @@
 export interface SonarQubeConfig {
   host?: string
   token?: string
+  /** Name of the env var the token came from, for error messages. */
+  tokenEnv?: string
   project?: string
   branch?: string
 }
