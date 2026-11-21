@@ -34,17 +34,22 @@ jobs:
           [[ "$GITHUB_REF" == "refs/heads/main" ]] || { echo "::error::Run the release from main."; exit 1; }
           version=$(node -p "require('./package.json').version")
           tag="v$version"
-          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
-            echo "::error::$tag already exists. Bump the version first."
-            exit 1
-          fi
           if npm view "$(node -p "require('./package.json').name")@$version" version >/dev/null 2>&1; then
-            echo "::error::$version is already on npm."
+            echo "::error::$version is already on npm. Bump the version first."
             exit 1
           fi
-          git tag "$tag" "$GITHUB_SHA"
-          git push origin "refs/tags/$tag"
-          echo "Tagged $tag at $GITHUB_SHA"
+          # A tag left by an earlier run whose publish failed is reused, but
+          # only when it points at a commit that carries this same version.
+          existing=$(git rev-list -n 1 "$tag" 2>/dev/null || true)
+          if [[ -n "$existing" ]]; then
+            tagged_version=$(git show "$existing:package.json" | node -p "JSON.parse(require('fs').readFileSync(0)).version")
+            [[ "$tagged_version" == "$version" ]] || { echo "::error::$tag points at $existing, which is not version $version."; exit 1; }
+            echo "Reusing $tag at $existing"
+          else
+            git tag "$tag" "$GITHUB_SHA"
+            git push origin "refs/tags/$tag"
+            echo "Tagged $tag at $GITHUB_SHA"
+          fi
 
       - run: npm install -g npm@latest
       - run: npm ci
