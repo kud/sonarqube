@@ -1,24 +1,26 @@
+const LEGACY_TOKEN_ENV = "SONARQUBE_DASH_TOKEN";
+
 export class MissingHostError extends Error {
   constructor() {
     super(
       "No SonarQube host configured. Set SONARQUBE_HOST or SONAR_HOST_URL, add `host` to the config file (~/.config/sonarqube/config.json), or pass it explicitly.",
-    )
-    this.name = "MissingHostError"
+    );
+    this.name = "MissingHostError";
   }
 }
 
 export class SonarQubeHttpError extends Error {
-  readonly status: number
-  readonly path: string
+  readonly status: number;
+  readonly path: string;
 
   constructor(status: number, path: string, detail?: string, message?: string) {
     super(
       message ??
         `SonarQube request to ${path} failed with HTTP ${status}${detail ? `: ${detail}` : ""}`,
-    )
-    this.name = "SonarQubeHttpError"
-    this.status = status
-    this.path = path
+    );
+    this.name = "SonarQubeHttpError";
+    this.status = status;
+    this.path = path;
   }
 }
 
@@ -29,11 +31,13 @@ export class SonarQubeAuthError extends SonarQubeHttpError {
       path,
       undefined,
       tokenSent
-        ? tokenEnv
-          ? `SonarQube rejected the token from ${tokenEnv} (HTTP 401 on ${path}). Set ${tokenEnv} to a valid user token.`
-          : `SonarQube rejected the token (HTTP 401 on ${path}). Set SONARQUBE_TOKEN or SONAR_TOKEN to a valid user token.`
+        ? tokenEnv === LEGACY_TOKEN_ENV
+          ? `SonarQube rejected the token from ${tokenEnv} (HTTP 401 on ${path}). Set SONARQUBE_TOKEN to a valid user token; it takes precedence over ${tokenEnv}.`
+          : tokenEnv
+            ? `SonarQube rejected the token from ${tokenEnv} (HTTP 401 on ${path}). Set ${tokenEnv} to a valid user token.`
+            : `SonarQube rejected the token (HTTP 401 on ${path}). Set SONARQUBE_TOKEN or SONAR_TOKEN to a valid user token.`
         : `SonarQube requires authentication (HTTP 401 on ${path}). Set SONARQUBE_TOKEN or SONAR_TOKEN to a user token.`,
-    )
-    this.name = "SonarQubeAuthError"
+    );
+    this.name = "SonarQubeAuthError";
   }
 }
