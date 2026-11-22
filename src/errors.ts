@@ -1,3 +1,5 @@
+const LEGACY_TOKEN_ENV = "SONARQUBE_DASH_TOKEN"
+
 export class MissingHostError extends Error {
   constructor() {
     super(
@@ -29,8 +31,10 @@ export class SonarQubeAuthError extends SonarQubeHttpError {
       path,
       undefined,
       tokenSent
-        ? tokenEnv
-          ? `SonarQube rejected the token from ${tokenEnv} (HTTP 401 on ${path}). Set ${tokenEnv} to a valid user token.`
+        ? tokenEnv === LEGACY_TOKEN_ENV
+          ? `SonarQube rejected the token from ${tokenEnv} (HTTP 401 on ${path}). Set SONARQUBE_TOKEN to a valid user token; it takes precedence over ${tokenEnv}.`
+          : tokenEnv
+            ? `SonarQube rejected the token from ${tokenEnv} (HTTP 401 on ${path}). Set ${tokenEnv} to a valid user token.`
           : `SonarQube rejected the token (HTTP 401 on ${path}). Set SONARQUBE_TOKEN or SONAR_TOKEN to a valid user token.`
         : `SonarQube requires authentication (HTTP 401 on ${path}). Set SONARQUBE_TOKEN or SONAR_TOKEN to a user token.`,
     )

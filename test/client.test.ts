@@ -267,6 +267,30 @@ test("a 401 with a token not from env falls back to the generic hint", async () 
   }
 })
 
+test("a 401 on a legacy SONARQUBE_DASH_TOKEN points at SONARQUBE_TOKEN", async () => {
+  const fake = await startFakeSonarQube(() => ({ status: 401 }))
+  try {
+    const client = new SonarQubeClient({
+      host: fake.host,
+      token: "tok789",
+      tokenEnv: "SONARQUBE_DASH_TOKEN",
+    })
+    await assert.rejects(
+      client.getProjectStatus({ project: "my-project" }),
+      (err: unknown) => {
+        assert.ok(err instanceof SonarQubeAuthError)
+        const message = (err as Error).message
+        assert.match(message, /from SONARQUBE_DASH_TOKEN/)
+        assert.match(message, /Set SONARQUBE_TOKEN to a valid user token/)
+        assert.ok(!message.includes("tok789"))
+        return true
+      },
+    )
+  } finally {
+    await fake.close()
+  }
+})
+
 test("non-401 HTTP errors stay plain SonarQubeHttpError", async () => {
   const fake = await startFakeSonarQube(() => ({ status: 403 }))
   try {

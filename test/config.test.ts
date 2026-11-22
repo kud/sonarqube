@@ -203,6 +203,14 @@ test("a missing host is a typed error, never a silent default", () => {
   assert.throws(() => new SonarQubeClient(cfg), MissingHostError)
 })
 
+test("the missing-host message names the current env vars and config path", () => {
+  const { message } = new MissingHostError()
+  assert.match(message, /Set SONARQUBE_HOST or SONAR_HOST_URL/)
+  assert.ok(message.includes("~/.config/sonarqube/config.json"))
+  assert.ok(!message.includes("DASH"))
+  assert.ok(!message.includes("sonarqube-dash-cli"))
+})
+
 test("redaction hides the token", () => {
   assert.equal(redactConfig({ host: "h", token: "secret" }).token, "***")
   assert.equal(redactToken("auth secret failed secret", "secret"), "auth *** failed ***")
